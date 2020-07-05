@@ -4,5 +4,5 @@
     "noEmit": false,
     "outDir": "dist"
   },
-  "exclude": ["src/App.tsx", "src/index.tsx"] 
+  "exclude": ["src/App.tsx", "src/index.tsx", "src/**/*.test.tsx", "src/**/*.test.ts"]
 }

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { calculateOffset, mousewheelListener, isPassiveSupported, hasOffsetParent } from "./utils";
 
 interface InfiniteScrollProps {
   loadMore?: (page?: number) => any;
@@ -9,7 +10,7 @@ interface InfiniteScrollProps {
   useWindow?: boolean;
   isReverse?: boolean;
   useCapture?: boolean;
-  getScrollParent?: (() => any) | null
+  getScrollParent?: (() => any) | null;
 }
 
 export function useInfiniteScroll({
@@ -21,8 +22,8 @@ export function useInfiniteScroll({
   useWindow = true,
   isReverse = false,
   useCapture = false,
-  getScrollParent = null
-}  : InfiniteScrollProps = {}) {
+  getScrollParent = null,
+}: InfiniteScrollProps = {}) {
   const pageLoadedRef = useRef<any>();
   const optionsRef = useRef<any>();
   const scrollComponentRef = useRef<any>();
@@ -37,11 +38,11 @@ export function useInfiniteScroll({
       if (isPassiveSupported()) {
         options = {
           useCapture: useCapture,
-          passive: true
+          passive: true,
         };
       } else {
         options = {
-          passive: false
+          passive: false,
         };
       }
       return options;
@@ -77,23 +78,15 @@ export function useInfiniteScroll({
   );
 
   useEffect(
-    function() {
+    function () {
       function detachScrollListener() {
         let scrollEl = window;
         if (useWindow === false) {
           scrollEl = getParentElement(scrollComponentRef.current);
         }
 
-        scrollEl.removeEventListener(
-          "scroll",
-          scrollListener,
-          optionsRef.current ? optionsRef.current : useCapture
-        );
-        scrollEl.removeEventListener(
-          "resize",
-          scrollListener,
-          optionsRef.current ? optionsRef.current : useCapture
-        );
+        scrollEl.removeEventListener("scroll", scrollListener, optionsRef.current ? optionsRef.current : useCapture);
+        scrollEl.removeEventListener("resize", scrollListener, optionsRef.current ? optionsRef.current : useCapture);
       }
 
       function scrollListener() {
@@ -103,14 +96,8 @@ export function useInfiniteScroll({
 
         let offset;
         if (useWindow) {
-          const doc =
-            document.documentElement ||
-            document.body.parentNode ||
-            document.body;
-          const scrollTop =
-            scrollEl.pageYOffset !== undefined
-              ? scrollEl.pageYOffset
-              : doc.scrollTop;
+          const doc = document.documentElement || document.body.parentNode || document.body;
+          const scrollTop = scrollEl.pageYOffset !== undefined ? scrollEl.pageYOffset : doc.scrollTop;
           if (isReverse) {
             offset = scrollTop;
           } else {
@@ -119,12 +106,12 @@ export function useInfiniteScroll({
         } else if (isReverse) {
           offset = parentNode.scrollTop;
         } else {
-          offset =
-            el.scrollHeight - parentNode.scrollTop - parentNode.clientHeight;
+          offset = el.scrollHeight - parentNode.scrollTop - parentNode.clientHeight;
         }
 
         // Here we make sure the element is visible as well as checking the offset
-        if (offset < Number(threshold) && (el && el.offsetParent !== null)) {
+        // console.log(offset, threshold, el.offsetParent)
+        if (offset < Number(threshold) && hasOffsetParent(el)) {
           detachScrollListener();
           beforeScrollHeightRef.current = parentNode.scrollHeight;
           beforeScrollTopRef.current = parentNode.scrollTop;
@@ -153,16 +140,8 @@ export function useInfiniteScroll({
           mousewheelListener,
           optionsRef.current ? optionsRef.current : useCapture
         );
-        scrollEl.addEventListener(
-          "scroll",
-          scrollListener,
-          optionsRef.current ? optionsRef.current : useCapture
-        );
-        scrollEl.addEventListener(
-          "resize",
-          scrollListener,
-          optionsRef.current ? optionsRef.current : useCapture
-        );
+        scrollEl.addEventListener("scroll", scrollListener, optionsRef.current ? optionsRef.current : useCapture);
+        scrollEl.addEventListener("resize", scrollListener, optionsRef.current ? optionsRef.current : useCapture);
 
         if (initialLoad) {
           scrollListener();
@@ -179,9 +158,7 @@ export function useInfiniteScroll({
         if (isReverse && loadMoreRef.current) {
           const parentElement = getParentElement(scrollComponentRef.current);
           parentElement.scrollTop =
-            parentElement.scrollHeight -
-            beforeScrollHeightRef.current +
-            beforeScrollTopRef.current;
+            parentElement.scrollHeight - beforeScrollHeightRef.current + beforeScrollTopRef.current;
           loadMoreRef.current = false;
         }
         attachScrollListener();
@@ -211,58 +188,11 @@ export function useInfiniteScroll({
       threshold,
       detachMousewheelListener,
       eventListenerOptions,
-      getParentElement
+      getParentElement,
     ]
   );
 
   return [scrollComponentRef];
-}
-
-function calculateOffset(el, scrollTop) {
-  if (!el) {
-    return 0;
-  }
-
-  return (
-    calculateTopPosition(el) +
-    (el.offsetHeight - scrollTop - window.innerHeight)
-  );
-}
-
-function calculateTopPosition(el) {
-  if (!el) {
-    return 0;
-  }
-  return el.offsetTop + calculateTopPosition(el.offsetParent);
-}
-
-function isPassiveSupported() {
-  let passive = false;
-
-  const testOptions = {
-    get passive() {
-      passive = true;
-      return true;
-    }
-  };
-
-  try {
-    //@ts-ignore
-    document.addEventListener("test", null, testOptions);
-    //@ts-ignore
-    document.removeEventListener("test", null, testOptions);
-  } catch (e) {
-    // ignore
-  }
-  return passive;
-}
-
-function mousewheelListener(e) {
-  // Prevents Chrome hangups
-  // See: https://stackoverflow.com/questions/47524205/random-high-content-download-time-in-chrome/47684257#47684257
-  if (e.deltaY === 1 && !isPassiveSupported()) {
-    e.preventDefault();
-  }
 }
 
 export function InfiniteScroll(renderProps) {
@@ -289,7 +219,7 @@ export function InfiniteScroll(renderProps) {
     threshold,
     useCapture,
     useWindow,
-    getScrollParent
+    getScrollParent,
   });
   const defaultLoader = <div key={"loader"}>Loading</div>;
 
@@ -300,9 +230,7 @@ export function InfiniteScroll(renderProps) {
     if (loader) {
       isReverse ? childrenArray.unshift(loader) : childrenArray.push(loader);
     } else if (defaultLoader) {
-      isReverse
-        ? childrenArray.unshift(defaultLoader)
-        : childrenArray.push(defaultLoader);
+      isReverse ? childrenArray.unshift(defaultLoader) : childrenArray.push(defaultLoader);
     }
   }
   return React.createElement(element, props, childrenArray);
